@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   Pencil,
   Plus,
+  Copy,
   Search,
   Trash2,
   ChevronUp,
@@ -45,6 +46,7 @@ import {
   monthKey,
   monthLabel,
   sortByFecha,
+  todayISO,
 } from '@/lib/bitacora'
 import type { Filtros } from '@/lib/bitacora'
 import type { ActivityDraft } from '@/types/activity'
@@ -53,6 +55,73 @@ import { ActivityForm } from './ActivityForm'
 const MESES_INICIALES = 4
 const MESES_POR_PAGINA = 4
 const claveFiltros = (f: Filtros, asc: boolean) => JSON.stringify(f) + (asc ? '1' : '0')
+
+const PLANTILLAS: { id: string; label: string; crear: () => ActivityDraft }[] = [
+  {
+    id: 'soporte',
+    label: 'Soporte / asistencias',
+    crear: () => ({
+      fecha: todayISO(),
+      horaInicio: '09:00',
+      horaFin: '',
+      categoria: 'otro',
+      subtipo: 'Soporte / resolución de incidencias',
+      sistema: '',
+      descripcion: '',
+      resultado: '',
+      participantes: '',
+      tags: '',
+    }),
+  },
+  {
+    id: 'reunion',
+    label: 'Reunión de oficina',
+    crear: () => ({
+      fecha: todayISO(),
+      horaInicio: '09:00',
+      horaFin: '',
+      categoria: 'reunion',
+      subtipo: 'Reunión de oficina',
+      sistema: '',
+      descripcion: '',
+      resultado: '',
+      participantes: '',
+      tags: 'reunion',
+    }),
+  },
+  {
+    id: 'desarrollo',
+    label: 'Desarrollo (SIGI / expedientes)',
+    crear: () => ({
+      fecha: todayISO(),
+      horaInicio: '09:00',
+      horaFin: '',
+      categoria: 'desarrollo',
+      subtipo: 'Funcionalidad modificada',
+      sistema: 'SIGI',
+      descripcion: '',
+      resultado: '',
+      participantes: '',
+      tags: 'sigi',
+    }),
+  },
+  {
+    id: 'despliegue',
+    label: 'Despliegue',
+    crear: () => ({
+      fecha: todayISO(),
+      horaInicio: '09:00',
+      horaFin: '',
+      categoria: 'despliegue',
+      subtipo: 'Despliegue a producción',
+      sistema: '',
+      descripcion: '',
+      resultado: '',
+      participantes: '',
+      tags: 'produccion',
+    }),
+  },
+]
 
 interface Props {
   activities: Activity[]
@@ -67,6 +136,9 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Activity | null>(null)
   const [deleting, setDeleting] = useState<Activity | null>(null)
+  const [duplicando, setDuplicando] = useState(false)
+  const [plantillaInicial, setPlantillaInicial] = useState<ActivityDraft | null>(null)
+  const [plantillaSel, setPlantillaSel] = useState('')
   const [mesesVisibles, setMesesVisibles] = useState(MESES_INICIALES)
   const [paginacionClave, setPaginacionClave] = useState(() => claveFiltros(filtros, asc))
 
@@ -107,8 +179,20 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
 
   const hayFiltros = JSON.stringify(filtros) !== JSON.stringify(filtrosVacios)
 
+  const formInitial =
+    plantillaInicial ??
+    (editing ? (duplicando ? { ...editing, fecha: todayISO() } : editing) : null)
+
+  const mesesDisponibles = useMemo(
+    () => agrupados.map(([key]) => ({ key, label: monthLabel(key) })),
+    [agrupados]
+  )
+
   const handleSubmit = (d: ActivityDraft) => {
-    if (editing) {
+    if (duplicando) {
+      onAdd(d)
+      toast.success('Actividad duplicada')
+    } else if (editing) {
       onUpdate(editing.id, d)
       toast.success('Actividad actualizada')
     } else {
@@ -117,6 +201,48 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
     }
     setFormOpen(false)
     setEditing(null)
+    setDuplicando(false)
+    setPlantillaInicial(null)
+  }
+
+  const abrirNueva = () => {
+    setEditing(null)
+    setDuplicando(false)
+    setPlantillaInicial(null)
+    setFormOpen(true)
+  }
+
+  const abrirEditar = (a: Activity) => {
+    setEditing(a)
+    setDuplicando(false)
+    setPlantillaInicial(null)
+    setFormOpen(true)
+  }
+
+  const abrirDuplicar = (a: Activity) => {
+    setEditing(a)
+    setDuplicando(true)
+    setPlantillaInicial(null)
+    setFormOpen(true)
+  }
+
+  const abrirPlantilla = (id: string) => {
+    const t = PLANTILLAS.find((p) => p.id === id)
+    if (!t) return
+    setPlantillaSel('')
+    setEditing(null)
+    setDuplicando(false)
+    setPlantillaInicial(t.crear())
+    setFormOpen(true)
+  }
+
+  const irAlMes = (key: string) => {
+    const i = agrupados.findIndex(([k]) => k === key)
+    if (i < 0) return
+    setMesesVisibles(i + 1)
+    requestAnimationFrame(() => {
+      document.getElementById(`mes-${key}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    })
   }
 
   const set = (k: keyof Filtros, v: string) => setFiltros((p) => ({ ...p, [k]: v }))
@@ -200,12 +326,31 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
               {asc ? <ChevronUp className="h-4 w-4 mr-1" /> : <ChevronDown className="h-4 w-4 mr-1" />}
               {asc ? 'Antiguas primero' : 'Recientes primero'}
             </Button>
-            <Button
-              onClick={() => {
-                setEditing(null)
-                setFormOpen(true)
-              }}
-            >
+            <Select value={plantillaSel} onValueChange={abrirPlantilla}>
+              <SelectTrigger className="w-52">
+                <SelectValue placeholder="Plantilla…" />
+              </SelectTrigger>
+              <SelectContent>
+                {PLANTILLAS.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    {p.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Select value="" onValueChange={irAlMes}>
+              <SelectTrigger className="w-44" disabled={agrupados.length === 0}>
+                <SelectValue placeholder="Ir al mes…" />
+              </SelectTrigger>
+              <SelectContent>
+                {mesesDisponibles.map((m) => (
+                  <SelectItem key={m.key} value={m.key}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={abrirNueva}>
               <Plus className="h-4 w-4 mr-1" /> Nueva actividad
             </Button>
           </div>
@@ -230,7 +375,7 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
       ) : (
         <div className="space-y-4">
           {visibles.map(([key, items]) => (
-          <div key={key} className="relative pl-6">
+          <div key={key} id={`mes-${key}`} className="relative pl-6 scroll-mt-32">
             <div className="absolute left-[9px] top-2 bottom-0 w-px bg-border" aria-hidden />
             <h3 className="relative mb-3 font-semibold">
               <span className="absolute -left-6 top-1.5 h-3 w-3 rounded-full bg-primary ring-4 ring-background" />
@@ -261,12 +406,19 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
                           variant="ghost"
                           size="icon"
                           className="h-7 w-7"
-                          onClick={() => {
-                            setEditing(a)
-                            setFormOpen(true)
-                          }}
+                          title="Editar"
+                          onClick={() => abrirEditar(a)}
                         >
                           <Pencil className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7"
+                          title="Duplicar (precarga el formulario con los datos de hoy)"
+                          onClick={() => abrirDuplicar(a)}
+                        >
+                          <Copy className="h-3.5 w-3.5" />
                         </Button>
                         <Button
                           variant="ghost"
@@ -320,12 +472,20 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
       )}
 
       {/* Dialog crear/editar */}
-      <Dialog open={formOpen} onOpenChange={(o) => (setFormOpen(o), !o && setEditing(null))}>
+      <Dialog open={formOpen} onOpenChange={(o) => (setFormOpen(o), !o && setEditing(null), !o && setDuplicando(false), !o && setPlantillaInicial(null))}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>{editing ? 'Editar actividad' : 'Nueva actividad'}</DialogTitle>
+            <DialogTitle>
+              {duplicando
+                ? 'Duplicar actividad'
+                : editing
+                  ? 'Editar actividad'
+                  : plantillaInicial
+                    ? 'Nueva actividad (desde plantilla)'
+                    : 'Nueva actividad'}
+            </DialogTitle>
           </DialogHeader>
-          <ActivityForm initial={editing} onSubmit={handleSubmit} onCancel={() => setFormOpen(false)} />
+          <ActivityForm initial={formInitial} onSubmit={handleSubmit} onCancel={() => setFormOpen(false)} />
         </DialogContent>
       </Dialog>
 

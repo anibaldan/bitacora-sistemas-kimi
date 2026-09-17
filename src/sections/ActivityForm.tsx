@@ -43,19 +43,24 @@ function draftFrom(a: Activity): ActivityDraft {
   }
 }
 
+function toDraft(initial: Activity | ActivityDraft): ActivityDraft {
+  if ('id' in initial) return draftFrom(initial)
+  return { ...initial }
+}
+
 interface Props {
-  initial?: Activity | null
+  initial?: Activity | ActivityDraft | null
   onSubmit: (d: ActivityDraft) => void
   onCancel: () => void
 }
 
 export function ActivityForm({ initial, onSubmit, onCancel }: Props) {
-  const [d, setD] = useState<ActivityDraft>(() => (initial ? draftFrom(initial) : emptyDraft()))
+  const [d, setD] = useState<ActivityDraft>(() => (initial ? toDraft(initial) : emptyDraft()))
   const [prevInitial, setPrevInitial] = useState(initial)
 
   if (prevInitial !== initial) {
     setPrevInitial(initial)
-    setD(initial ? draftFrom(initial) : emptyDraft())
+    setD(initial ? toDraft(initial) : emptyDraft())
   }
 
   const meta = categoryMeta(d.categoria)
