@@ -49,3 +49,22 @@ El repositorio incluye un workflow de GitHub Actions (`.github/workflows/deploy.
 | `npm run build`| Typecheck + build de producción          |
 | `npm run lint` | ESLint                                   |
 | `npm run preview` | Previsualiza el build de producción  |
+| `npm run asana` | Convierte el export de Asana (`asana.xlsx`) en un respaldo JSON |
+
+## Importar histórico desde Asana
+
+La bitácora arrancó importando el historial de `Asana` (2024 → 2026). El script `scripts/asana-to-bitacora.mjs` convierte la exportación XLSX en un respaldo listo para el botón **Importar** de la app.
+
+1. En Asana: exportar el proyecto a **XLSX** y guardar el archivo como `asana.xlsx` en la raíz del repo.
+2. Ejecutar el convertidor:
+
+   ```bash
+   npm run asana
+   ```
+
+   (o `node scripts/asana-to-bitacora.mjs <otro.xlsx> [salida.json]` si querés otro archivo).
+3. En la app: **Registros → Importar** → elegir `bitacora-respaldo-asana.json`. El import **reemplaza** todo; si tenés datos, descargá un respaldo antes.
+
+Ajustes en el encabezado del script (arriba de todo): `PARTICIPANTE`, `HORA_INICIO`, `HORA_FIN` y las secciones personales de Asana a excluir (`EXCLUDE_SECTIONS`). Los clasificadores de categoría/sistema/etiquetas están abajo en `RULES`, `SISTEMAS` y `TAGS`.
+
+> ⚠️ `asana.xlsx` y `bitacora-respaldo-*.json` están en `.gitignore`: son datos personales y **no se suben al respositorio público**.

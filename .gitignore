@@ -12,6 +12,11 @@ dist
 dist-ssr
 *.local
 
+# Datos personales / respaldos (no subir a un repo público)
+asana.xlsx
+asana*.csv
+bitacora-respaldo-*.json
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
