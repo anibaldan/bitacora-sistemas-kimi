@@ -1,0 +1,199 @@
+import type { Activity, CategoryId } from '@/types/activity'
+import { CATEGORIES, categoryMeta } from '@/types/activity'
+
+/* ---------- Fechas ---------- */
+
+export const MESES = [
+  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+]
+
+const DIAS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado']
+
+export function parseISO(fecha: string): Date {
+  const [y, m, d] = fecha.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
+export function formatFecha(fecha: string): string {
+  const d = parseISO(fecha)
+  return `${DIAS[d.getDay()]} ${d.getDate()} de ${MESES[d.getMonth()]} de ${d.getFullYear()}`
+}
+
+export function formatFechaCorta(fecha: string): string {
+  const d = parseISO(fecha)
+  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+}
+
+export const yearOf = (a: Activity) => parseISO(a.fecha).getFullYear()
+export const monthOf = (a: Activity) => parseISO(a.fecha).getMonth()
+
+/* ---------- Claves de agrupación ---------- */
+
+/** "2026-03" -> "Marzo 2026" */
+export function monthKey(fecha: string): string {
+  return fecha.slice(0, 7)
+}
+
+export function monthLabel(key: string): string {
+  const [y, m] = key.split('-').map(Number)
+  return `${MESES[m - 1]} ${y}`
+}
+
+/* ---------- Filtrado y búsqueda ---------- */
+
+export interface Filtros {
+  texto: string
+  categoria: CategoryId | 'todas'
+  desde: string
+  hasta: string
+  sistema: string
+  tag: string
+}
+
+export const filtrosVacios: Filtros = {
+  texto: '',
+  categoria: 'todas',
+  desde: '',
+  hasta: '',
+  sistema: '',
+  tag: '',
+}
+
+export function matches(a: Activity, f: Filtros): boolean {
+  if (f.categoria !== 'todas' && a.categoria !== f.categoria) return false
+  if (f.desde && a.fecha < f.desde) return false
+  if (f.hasta && a.fecha > f.hasta) return false
+  if (f.sistema && a.sistema.toLowerCase() !== f.sistema.toLowerCase()) return false
+  if (f.tag && !a.tags.some((t) => t.toLowerCase().includes(f.tag.toLowerCase()))) return false
+  if (f.texto) {
+    const q = f.texto.toLowerCase()
+    const blob = [
+      a.descripcion,
+      a.resultado ?? '',
+      a.sistema,
+      a.subtipo,
+      a.participantes ?? '',
+      a.tags.join(' '),
+    ]
+      .join(' ')
+      .toLowerCase()
+    if (!blob.includes(q)) return false
+  }
+  return true
+}
+
+export function sortByFecha(list: Activity[], asc = false): Activity[] {
+  return [...list].sort((a, b) => (asc ? a.fecha.localeCompare(b.fecha) : b.fecha.localeCompare(a.fecha)))
+}
+
+/* ---------- Estadísticas ---------- */
+
+export interface YearStats {
+  year: number
+  total: number
+  porCategoria: { id: CategoryId; label: string; count: number; pct: number }[]
+  /** matriz[mes][categoriaId] = cantidad */
+  porMes: Record<number, Partial<Record<CategoryId, number>>>
+  mesesConActividad: number
+  sistemas: { nombre: string; count: number }[]
+  subtiposTop: { nombre: string; count: number }[]
+  tagsTop: { nombre: string; count: number }[]
+  diasTrabajados: number
+}
+
+export function computeYearStats(acts: Activity[], year: number): YearStats {
+  const delAno = acts.filter((a) => yearOf(a) === year)
+  const porCategoria = CATEGORIES.map((c) => {
+    const count = delAno.filter((a) => a.categoria === c.id).length
+    return { id: c.id, label: c.label, count, pct: delAno.length ? Math.round((count / delAno.length) * 100) : 0 }
+  })
+  const porMes: Record<number, Partial<Record<CategoryId, number>>> = {}
+  delAno.forEach((a) => {
+    const m = monthOf(a)
+    porMes[m] = porMes[m] ?? {}
+    porMes[m][a.categoria] = (porMes[m][a.categoria] ?? 0) + 1
+  })
+  const sistemasMap = new Map<string, number>()
+  delAno.forEach((a) => {
+    if (a.sistema) sistemasMap.set(a.sistema, (sistemasMap.get(a.sistema) ?? 0) + 1)
+  })
+  const subMap = new Map<string, number>()
+  delAno.forEach((a) => subMap.set(a.subtipo, (subMap.get(a.subtipo) ?? 0) + 1))
+  const tagMap = new Map<string, number>()
+  delAno.forEach((a) => a.tags.forEach((t) => tagMap.set(t, (tagMap.get(t) ?? 0) + 1)))
+  const dias = new Set(delAno.map((a) => a.fecha)).size
+  const srt = (m: Map<string, number>) =>
+    [...m.entries()]
+      .sort((x, y) => y[1] - x[1])
+      .map(([nombre, count]) => ({ nombre, count }))
+  return {
+    year,
+    total: delAno.length,
+    porCategoria,
+    porMes,
+    mesesConActividad: Object.keys(porMes).length,
+    sistemas: srt(sistemasMap),
+    subtiposTop: srt(subMap).slice(0, 8),
+    tagsTop: srt(tagMap).slice(0, 10),
+    diasTrabajados: dias,
+  }
+}
+
+/* ---------- Memoria anual en prosa (Markdown) ---------- */
+
+export function generarMemoria(stats: YearStats): string {
+  const lines: string[] = []
+  lines.push(`# Memoria de actividades ${stats.year}`)
+  lines.push('')
+  lines.push(
+    `Durante el año ${stats.year} se registraron **${stats.total} actividades** en ` +
+      `${stats.mesesConActividad} meses distintos (${stats.diasTrabajados} días con actividad registrada).`
+  )
+  lines.push('')
+  lines.push('## Distribución por tipo de actividad')
+  lines.push('')
+  for (const c of stats.porCategoria) {
+    if (c.count > 0) lines.push(`- **${c.label}:** ${c.count} registros (${c.pct} %)`)
+  }
+  lines.push('')
+  if (stats.subtiposTop.length) {
+    lines.push('## Trabajos más frecuentes')
+    lines.push('')
+    stats.subtiposTop.forEach((s) => lines.push(`- ${s.nombre}: ${s.count} registros`))
+    lines.push('')
+  }
+  if (stats.sistemas.length) {
+    lines.push('## Sistemas / módulos intervenidos')
+    lines.push('')
+    stats.sistemas.forEach((s) => lines.push(`- ${s.nombre}: ${s.count} registros`))
+    lines.push('')
+  }
+  lines.push('## Resumen mensual')
+  lines.push('')
+  for (let m = 0; m < 12; m++) {
+    const row = stats.porMes[m]
+    if (!row) continue
+    const parts = CATEGORIES.filter((c) => row[c.id]).map(
+      (c) => `${categoryMeta(c.id).label.toLowerCase()}: ${row[c.id]}`
+    )
+    lines.push(`- **${MESES[m]}:** ${parts.join(', ')}`)
+  }
+  lines.push('')
+  return lines.join('\n')
+}
+
+/* ---------- Exportación / importación ---------- */
+
+export function exportJSON(acts: Activity[]): string {
+  return JSON.stringify({ app: 'bitacora-sistemas', version: 1, actividades: acts }, null, 2)
+}
+
+export function importJSON(raw: string): Activity[] {
+  const data = JSON.parse(raw)
+  const arr = Array.isArray(data) ? data : data.actividades
+  if (!Array.isArray(arr)) throw new Error('Formato inválido')
+  return arr.filter(
+    (a) => a && typeof a.id === 'string' && typeof a.fecha === 'string' && typeof a.descripcion === 'string'
+  )
+}
