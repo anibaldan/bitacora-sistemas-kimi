@@ -5,7 +5,8 @@ Webapp para el registro diario de actividades del área de sistemas / desarrollo
 ## Características
 
 - **Registro de actividades** con fecha, horas, categoría, subtipo, sistema, descripción, resultado, participantes y etiquetas.
-- **Listado con filtros**: texto libre, categoría, sistema, rango de fechas y etiqueta; orden ascendente/descendente y timeline agrupada por mes.
+- **Listado con filtros**: texto libre, categoría, sistema, rango de fechas y etiqueta; orden ascendente/descendente y timeline agrupada por mes, con carga incremental ("Cargar más") para manejarse bien con miles de registros.
+- **Modo oscuro / claro** con persistencia y toggle en el encabezado.
 - **Memoria anual**: KPIs, distribución por categoría, matriz mes × categoría, top de subtipos y etiquetas, y generación de una memoria en Markdown (copiar o descargar).
 - **Comparación de períodos** A/B con delta por categoría, actividad mensual y sistemas en común / exclusivos.
 - **Respaldo**: exportación e importación de la base completa en JSON.

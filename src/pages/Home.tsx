@@ -1,12 +1,15 @@
 import { useRef, useState } from 'react'
+import { useTheme } from 'next-themes'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
   Download,
   GitCompare,
+  Moon,
   NotebookPen,
   CalendarClock,
   ScrollText,
+  Sun,
   Upload,
   X,
 } from 'lucide-react'
@@ -45,6 +48,7 @@ const NAV: { id: Vista; label: string; icon: typeof NotebookPen }[] = [
 
 export default function Home() {
   const api = useActivities()
+  const { resolvedTheme, setTheme } = useTheme()
   const [vista, setVista] = useState<Vista>('registros')
   const [confirmImport, setConfirmImport] = useState<string | null>(null)
   const [diasSinRespaldo, setDiasSinRespaldo] = useState<number | null>(() => {
@@ -104,6 +108,14 @@ export default function Home() {
             </p>
           </div>
           <span className="flex-1" />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(resolvedTheme === 'dark' ? 'light' : 'dark')}
+            title={resolvedTheme === 'dark' ? 'Cambiar a modo claro' : 'Cambiar a modo oscuro'}
+          >
+            {resolvedTheme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+          </Button>
           <Button variant="outline" size="sm" onClick={handleExport}>
             <Download className="h-4 w-4 mr-1" /> Respaldo
           </Button>

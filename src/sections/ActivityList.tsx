@@ -50,6 +50,10 @@ import type { Filtros } from '@/lib/bitacora'
 import type { ActivityDraft } from '@/types/activity'
 import { ActivityForm } from './ActivityForm'
 
+const MESES_INICIALES = 4
+const MESES_POR_PAGINA = 4
+const claveFiltros = (f: Filtros, asc: boolean) => JSON.stringify(f) + (asc ? '1' : '0')
+
 interface Props {
   activities: Activity[]
   onAdd: (d: ActivityDraft) => void
@@ -63,6 +67,14 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<Activity | null>(null)
   const [deleting, setDeleting] = useState<Activity | null>(null)
+  const [mesesVisibles, setMesesVisibles] = useState(MESES_INICIALES)
+  const [paginacionClave, setPaginacionClave] = useState(() => claveFiltros(filtros, asc))
+
+  const clave = claveFiltros(filtros, asc)
+  if (clave !== paginacionClave) {
+    setPaginacionClave(clave)
+    setMesesVisibles(MESES_INICIALES)
+  }
 
   const sistemas = useMemo(
     () =>
@@ -86,6 +98,12 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
     })
     return [...map.entries()]
   }, [filtrados])
+
+  const visibles = useMemo(() => agrupados.slice(0, mesesVisibles), [agrupados, mesesVisibles])
+  const visiblesCount = useMemo(
+    () => visibles.reduce((acc, [, items]) => acc + items.length, 0),
+    [visibles]
+  )
 
   const hayFiltros = JSON.stringify(filtros) !== JSON.stringify(filtrosVacios)
 
@@ -196,6 +214,7 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
 
       <p className="text-sm text-muted-foreground">
         {filtrados.length} actividad{filtrados.length !== 1 ? 'es' : ''}
+        {filtrados.length !== visiblesCount && <> — mostrando {visiblesCount}</>}
         {filtros.texto && <> para «{filtros.texto}»</>}
       </p>
 
@@ -209,7 +228,8 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
           </CardContent>
         </Card>
       ) : (
-        agrupados.map(([key, items]) => (
+        <div className="space-y-4">
+          {visibles.map(([key, items]) => (
           <div key={key} className="relative pl-6">
             <div className="absolute left-[9px] top-2 bottom-0 w-px bg-border" aria-hidden />
             <h3 className="relative mb-3 font-semibold">
@@ -284,7 +304,19 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
               })}
             </div>
           </div>
-        ))
+        ))}
+
+        {agrupados.length > mesesVisibles && (
+          <div className="flex justify-center pt-1">
+            <Button
+              variant="outline"
+              onClick={() => setMesesVisibles((v) => v + MESES_POR_PAGINA)}
+            >
+              Cargar más ({agrupados.length - mesesVisibles} meses más)
+            </Button>
+          </div>
+        )}
+        </div>
       )}
 
       {/* Dialog crear/editar */}
