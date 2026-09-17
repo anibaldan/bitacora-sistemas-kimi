@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -68,10 +68,12 @@ interface Props {
 
 export function ActivityForm({ initial, onSubmit, onCancel }: Props) {
   const [d, setD] = useState<ActivityDraft>(() => (initial ? draftFrom(initial) : emptyDraft()))
+  const [prevInitial, setPrevInitial] = useState(initial)
 
-  useEffect(() => {
+  if (prevInitial !== initial) {
+    setPrevInitial(initial)
     setD(initial ? draftFrom(initial) : emptyDraft())
-  }, [initial])
+  }
 
   const meta = categoryMeta(d.categoria)
   const set = <K extends keyof ActivityDraft>(k: K, v: ActivityDraft[K]) =>
