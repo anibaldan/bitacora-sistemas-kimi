@@ -47,7 +47,8 @@ import {
   sortByFecha,
 } from '@/lib/bitacora'
 import type { Filtros } from '@/lib/bitacora'
-import { ActivityForm, type ActivityDraft } from './ActivityForm'
+import type { ActivityDraft } from '@/types/activity'
+import { ActivityForm } from './ActivityForm'
 
 interface Props {
   activities: Activity[]

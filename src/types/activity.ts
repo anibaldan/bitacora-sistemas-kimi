@@ -28,6 +28,19 @@ export interface Activity {
   updatedAt: number
 }
 
+export interface ActivityDraft {
+  fecha: string
+  horaInicio: string
+  horaFin: string
+  categoria: CategoryId
+  subtipo: string
+  sistema: string
+  descripcion: string
+  resultado: string
+  participantes: string
+  tags: string
+}
+
 export interface CategoryMeta {
   id: CategoryId
   label: string

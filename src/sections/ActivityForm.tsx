@@ -11,29 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
-import type { Activity, CategoryId } from '@/types/activity'
+import type { Activity, ActivityDraft, CategoryId } from '@/types/activity'
 import { CATEGORIES, categoryMeta } from '@/types/activity'
-
-export interface ActivityDraft {
-  fecha: string
-  horaInicio: string
-  horaFin: string
-  categoria: CategoryId
-  subtipo: string
-  sistema: string
-  descripcion: string
-  resultado: string
-  participantes: string
-  tags: string
-}
-
-const today = () => {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
+import { todayISO } from '@/lib/bitacora'
 
 const emptyDraft = (): ActivityDraft => ({
-  fecha: today(),
+  fecha: todayISO(),
   horaInicio: '',
   horaFin: '',
   categoria: 'desarrollo',

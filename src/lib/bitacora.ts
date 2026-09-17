@@ -1,4 +1,4 @@
-import type { Activity, CategoryId } from '@/types/activity'
+import type { Activity, ActivityDraft, CategoryId } from '@/types/activity'
 import { CATEGORIES, categoryMeta } from '@/types/activity'
 
 /* ---------- Fechas ---------- */
@@ -27,6 +27,32 @@ export function formatFechaCorta(fecha: string): string {
 
 export const yearOf = (a: Activity) => parseISO(a.fecha).getFullYear()
 export const monthOf = (a: Activity) => parseISO(a.fecha).getMonth()
+
+export function todayISO(): string {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
+/* ---------- Respaldos ---------- */
+
+export const LAST_BACKUP_KEY = 'bitacora-sistemas.lastBackup'
+
+export function leerUltimoRespaldo(): number | null {
+  try {
+    const raw = localStorage.getItem(LAST_BACKUP_KEY)
+    return raw ? Number(raw) || null : null
+  } catch {
+    return null
+  }
+}
+
+export function marcarRespaldo() {
+  try {
+    localStorage.setItem(LAST_BACKUP_KEY, String(Date.now()))
+  } catch {
+    /* sin almacenamiento disponible */
+  }
+}
 
 /* ---------- Claves de agrupación ---------- */
 
@@ -60,10 +86,15 @@ export const filtrosVacios: Filtros = {
   tag: '',
 }
 
+export function enRango(a: Activity, desde: string, hasta: string): boolean {
+  if (desde && a.fecha < desde) return false
+  if (hasta && a.fecha > hasta) return false
+  return true
+}
+
 export function matches(a: Activity, f: Filtros): boolean {
   if (f.categoria !== 'todas' && a.categoria !== f.categoria) return false
-  if (f.desde && a.fecha < f.desde) return false
-  if (f.hasta && a.fecha > f.hasta) return false
+  if (!enRango(a, f.desde, f.hasta)) return false
   if (f.sistema && a.sistema.toLowerCase() !== f.sistema.toLowerCase()) return false
   if (f.tag && !a.tags.some((t) => t.toLowerCase().includes(f.tag.toLowerCase()))) return false
   if (f.texto) {
@@ -85,6 +116,29 @@ export function matches(a: Activity, f: Filtros): boolean {
 
 export function sortByFecha(list: Activity[], asc = false): Activity[] {
   return [...list].sort((a, b) => (asc ? a.fecha.localeCompare(b.fecha) : b.fecha.localeCompare(a.fecha)))
+}
+
+/** Mapea un borrador del formulario a los campos de una actividad, normalizando la entrada. */
+export function fromDraft(d: ActivityDraft): Omit<Activity, 'id' | 'createdAt' | 'updatedAt'> {
+  return {
+    fecha: d.fecha,
+    horaInicio: d.horaInicio || undefined,
+    horaFin: d.horaFin || undefined,
+    categoria: d.categoria,
+    subtipo: d.subtipo,
+    sistema: d.sistema.trim(),
+    descripcion: d.descripcion.trim(),
+    resultado: d.resultado.trim() || undefined,
+    participantes: d.participantes.trim() || undefined,
+    tags: [
+      ...new Set(
+        d.tags
+          .split(',')
+          .map((t) => t.trim().toLowerCase())
+          .filter(Boolean)
+      ),
+    ],
+  }
 }
 
 /* ---------- Estadísticas ---------- */
@@ -189,11 +243,47 @@ export function exportJSON(acts: Activity[]): string {
   return JSON.stringify({ app: 'bitacora-sistemas', version: 1, actividades: acts }, null, 2)
 }
 
-export function importJSON(raw: string): Activity[] {
+export interface ImportResult {
+  actividades: Activity[]
+  descartados: number
+}
+
+export function importJSON(raw: string): ImportResult {
   const data = JSON.parse(raw)
   const arr = Array.isArray(data) ? data : data.actividades
   if (!Array.isArray(arr)) throw new Error('Formato inválido')
-  return arr.filter(
-    (a) => a && typeof a.id === 'string' && typeof a.fecha === 'string' && typeof a.descripcion === 'string'
-  )
+  const actividades: Activity[] = []
+  let descartados = 0
+  for (const a of arr) {
+    if (!a || typeof a.id !== 'string' || typeof a.fecha !== 'string' || typeof a.descripcion !== 'string') {
+      descartados++
+      continue
+    }
+    const esValido = (v: unknown): v is string => typeof v === 'string'
+    const texto = (v: unknown, fallback = '') => (esValido(v) ? v : fallback)
+    actividades.push({
+      id: a.id,
+      fecha: a.fecha,
+      horaInicio: esValido(a.horaInicio) ? a.horaInicio : undefined,
+      horaFin: esValido(a.horaFin) ? a.horaFin : undefined,
+      categoria: CATEGORIES.some((c) => c.id === a.categoria) ? (a.categoria as CategoryId) : 'otro',
+      subtipo: texto(a.subtipo),
+      sistema: texto(a.sistema),
+      descripcion: a.descripcion,
+      resultado: esValido(a.resultado) ? a.resultado : undefined,
+      participantes: esValido(a.participantes) ? a.participantes : undefined,
+      tags: Array.isArray(a.tags)
+        ? [
+            ...new Set(
+              (a.tags as unknown[])
+                .filter((t): t is string => typeof t === 'string')
+                .map((t) => t.toLowerCase())
+            ),
+          ]
+        : [],
+      createdAt: typeof a.createdAt === 'number' ? a.createdAt : Date.now(),
+      updatedAt: typeof a.updatedAt === 'number' ? a.updatedAt : Date.now(),
+    })
+  }
+  return { actividades, descartados }
 }

@@ -1,12 +1,14 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  AlertTriangle,
   Download,
   GitCompare,
   NotebookPen,
   CalendarClock,
   ScrollText,
   Upload,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Toaster } from '@/components/ui/sonner'
@@ -21,11 +23,17 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useActivities } from '@/hooks/useActivities'
-import { exportJSON, importJSON } from '@/lib/bitacora'
+import {
+  exportJSON,
+  fromDraft,
+  importJSON,
+  leerUltimoRespaldo,
+  marcarRespaldo,
+  todayISO,
+} from '@/lib/bitacora'
 import { ActivityList } from '@/sections/ActivityList'
 import { AnnualReport } from '@/sections/AnnualReport'
 import { CompareView } from '@/sections/CompareView'
-import type { Activity } from '@/types/activity'
 
 type Vista = 'registros' | 'memoria' | 'comparar'
 
@@ -39,6 +47,11 @@ export default function Home() {
   const api = useActivities()
   const [vista, setVista] = useState<Vista>('registros')
   const [confirmImport, setConfirmImport] = useState<string | null>(null)
+  const [diasSinRespaldo, setDiasSinRespaldo] = useState<number | null>(() => {
+    const last = leerUltimoRespaldo()
+    return last == null ? null : Math.floor((Date.now() - last) / (1000 * 60 * 60 * 24))
+  })
+  const [dismissBackup, setDismissBackup] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleExport = () => {
@@ -46,9 +59,12 @@ export default function Home() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `bitacora-respaldo-${new Date().toISOString().slice(0, 10)}.json`
+    a.download = `bitacora-respaldo-${todayISO()}.json`
     a.click()
     URL.revokeObjectURL(url)
+    marcarRespaldo()
+    setDiasSinRespaldo(0)
+    setDismissBackup(false)
     toast.success('Respaldo descargado')
   }
 
@@ -114,44 +130,34 @@ export default function Home() {
         </nav>
       </header>
 
+      {diasSinRespaldo != null && diasSinRespaldo >= 7 && !dismissBackup && (
+        <div className="mx-auto max-w-6xl px-4 pt-3">
+          <div className="flex items-center gap-3 rounded-lg border border-amber-300/70 bg-amber-50 px-4 py-2.5 text-sm text-amber-800 dark:border-amber-700/70 dark:bg-amber-950 dark:text-amber-200">
+            <AlertTriangle className="h-4 w-4 shrink-0" />
+            <span className="flex-1">
+              Hace {diasSinRespaldo} días que no descargás un respaldo. Tus datos viven solo en este
+              navegador.
+            </span>
+            <Button variant="outline" size="sm" onClick={handleExport}>
+              Descargar respaldo
+            </Button>
+            <button
+              onClick={() => setDismissBackup(true)}
+              aria-label="Cerrar aviso"
+              className="text-amber-700 hover:text-amber-900 dark:text-amber-300"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      )}
+
       <main className="mx-auto max-w-6xl px-4 py-6">
         {vista === 'registros' && (
           <ActivityList
             activities={api.activities}
-            onAdd={(d) =>
-              api.add({
-                fecha: d.fecha,
-                horaInicio: d.horaInicio || undefined,
-                horaFin: d.horaFin || undefined,
-                categoria: d.categoria,
-                subtipo: d.subtipo,
-                sistema: d.sistema.trim(),
-                descripcion: d.descripcion.trim(),
-                resultado: d.resultado.trim() || undefined,
-                participantes: d.participantes.trim() || undefined,
-                tags: d.tags
-                  .split(',')
-                  .map((t) => t.trim().toLowerCase())
-                  .filter(Boolean),
-              })
-            }
-            onUpdate={(id, d) =>
-              api.update(id, {
-                fecha: d.fecha,
-                horaInicio: d.horaInicio || undefined,
-                horaFin: d.horaFin || undefined,
-                categoria: d.categoria,
-                subtipo: d.subtipo,
-                sistema: d.sistema.trim(),
-                descripcion: d.descripcion.trim(),
-                resultado: d.resultado.trim() || undefined,
-                participantes: d.participantes.trim() || undefined,
-                tags: d.tags
-                  .split(',')
-                  .map((t) => t.trim().toLowerCase())
-                  .filter(Boolean),
-              })
-            }
+            onAdd={(d) => api.add(fromDraft(d))}
+            onUpdate={(id, d) => api.update(id, fromDraft(d))}
             onRemove={api.remove}
           />
         )}
@@ -174,8 +180,13 @@ export default function Home() {
               onClick={() => {
                 if (!confirmImport) return
                 try {
-                  api.replaceAll(importJSON(confirmImport) as Activity[])
-                  toast.success('Respaldo importado correctamente')
+                  const { actividades, descartados } = importJSON(confirmImport)
+                  api.replaceAll(actividades)
+                  toast.success(
+                    descartados > 0
+                      ? `Se importaron ${actividades.length} registros (${descartados} descartados)`
+                      : `Se importaron ${actividades.length} registros`
+                  )
                 } catch {
                   toast.error('No se pudo importar el archivo')
                 }

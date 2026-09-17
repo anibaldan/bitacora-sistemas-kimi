@@ -13,7 +13,11 @@ function load(): Activity[] {
 }
 
 function persist(acts: Activity[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(acts))
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(acts))
+  } catch (err) {
+    console.warn('No se pudo guardar en localStorage', err)
+  }
 }
 
 export function useActivities() {

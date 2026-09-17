@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Activity, CategoryId } from '@/types/activity'
 import { CATEGORIES } from '@/types/activity'
-import { monthKey, monthLabel } from '@/lib/bitacora'
+import { monthKey, monthLabel, enRango } from '@/lib/bitacora'
 
 interface Props {
   activities: Activity[]
@@ -15,12 +15,6 @@ interface Props {
 interface Periodo {
   desde: string
   hasta: string
-}
-
-function enPeriodo(a: Activity, p: Periodo): boolean {
-  if (p.desde && a.fecha < p.desde) return false
-  if (p.hasta && a.fecha > p.hasta) return false
-  return true
 }
 
 function resumen(acts: Activity[]) {
@@ -43,8 +37,8 @@ export function CompareView({ activities }: Props) {
   const [b, setB] = useState<Periodo>({ desde: '', hasta: '' })
 
   const { ra, rb } = useMemo(() => {
-    const pa = activities.filter((x) => enPeriodo(x, a))
-    const pb = activities.filter((x) => enPeriodo(x, b))
+    const pa = activities.filter((x) => enRango(x, a.desde, a.hasta))
+    const pb = activities.filter((x) => enRango(x, b.desde, b.hasta))
     return { ra: resumen(pa), rb: resumen(pb) }
   }, [activities, a, b])
 
