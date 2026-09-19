@@ -8,6 +8,7 @@ import {
   Moon,
   NotebookPen,
   CalendarClock,
+  FolderTree,
   ScrollText,
   Sun,
   Upload,
@@ -38,13 +39,15 @@ import {
 import { ActivityList } from '@/sections/ActivityList'
 import { AnnualReport } from '@/sections/AnnualReport'
 import { CompareView } from '@/sections/CompareView'
+import { CategoriesView } from '@/sections/CategoriesView'
 
-type Vista = 'registros' | 'memoria' | 'comparar'
+type Vista = 'registros' | 'memoria' | 'comparar' | 'categorias'
 
 const NAV: { id: Vista; label: string; icon: typeof NotebookPen }[] = [
   { id: 'registros', label: 'Registros', icon: NotebookPen },
   { id: 'memoria', label: 'Memoria anual', icon: CalendarClock },
   { id: 'comparar', label: 'Comparar períodos', icon: GitCompare },
+  { id: 'categorias', label: 'Categorías', icon: FolderTree },
 ]
 
 export default function Home() {
@@ -177,6 +180,7 @@ export default function Home() {
         )}
         {vista === 'memoria' && <AnnualReport activities={api.activities} />}
         {vista === 'comparar' && <CompareView activities={api.activities} />}
+        {vista === 'categorias' && <CategoriesView />}
         </CategoriesProvider>
       </main>
 
