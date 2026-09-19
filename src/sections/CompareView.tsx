@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { Activity, CategoryId } from '@/types/activity'
-import { CATEGORIES } from '@/types/activity'
+import { useCategories } from '@/lib/categories'
 import { monthKey, monthLabel, enRango } from '@/lib/bitacora'
 
 interface Props {
@@ -35,6 +35,8 @@ function resumen(acts: Activity[]) {
 export function CompareView({ activities }: Props) {
   const [a, setA] = useState<Periodo>({ desde: '', hasta: '' })
   const [b, setB] = useState<Periodo>({ desde: '', hasta: '' })
+
+  const { categories } = useCategories()
 
   const { ra, rb } = useMemo(() => {
     const pa = activities.filter((x) => enRango(x, a.desde, a.hasta))
@@ -103,7 +105,7 @@ export function CompareView({ activities }: Props) {
               </tr>
             </thead>
             <tbody>
-              {CATEGORIES.map((c) => {
+              {categories.map((c) => {
                 const va = ra.porCat.get(c.id) ?? 0
                 const vb = rb.porCat.get(c.id) ?? 0
                 const d = delta(va, vb)

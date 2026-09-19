@@ -12,8 +12,8 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { Activity } from '@/types/activity'
-import { CATEGORIES, categoryMeta } from '@/types/activity'
 import { MESES, computeYearStats, generarMemoria, yearOf } from '@/lib/bitacora'
+import { useCategories } from '@/lib/categories'
 
 interface Props {
   activities: Activity[]
@@ -26,10 +26,12 @@ export function AnnualReport({ activities }: Props) {
   )
   const [year, setYear] = useState<number | null>(null)
 
+  const { categories, categoryMeta } = useCategories()
+
   const stats = useMemo(() => {
     const y = year ?? years[0]
-    return y == null ? null : computeYearStats(activities, y)
-  }, [activities, years, year])
+    return y == null ? null : computeYearStats(activities, y, categories)
+  }, [activities, years, year, categories])
 
   if (activities.length === 0) {
     return (
@@ -158,7 +160,7 @@ export function AnnualReport({ activities }: Props) {
                   <thead>
                     <tr>
                       <th className="text-left p-1" />
-                      {CATEGORIES.map((c) => (
+                      {categories.map((c) => (
                         <th key={c.id} className="p-1 text-center" title={c.label}>
                           <span className={`inline-block h-3 w-3 rounded-full ${c.dot}`} />
                         </th>
@@ -170,11 +172,11 @@ export function AnnualReport({ activities }: Props) {
                     {MESES.map((m, i) => {
                       const row = stats.porMes[i]
                       if (!row) return null
-                      const rowTotal = CATEGORIES.reduce((acc, c) => acc + (row[c.id] ?? 0), 0)
+                      const rowTotal = categories.reduce((acc, c) => acc + (row[c.id] ?? 0), 0)
                       return (
                         <tr key={m} className="border-t border-border/60">
                           <td className="p-1 whitespace-nowrap">{m}</td>
-                          {CATEGORIES.map((c) => (
+                          {categories.map((c) => (
                             <td key={c.id} className="p-1 text-center">
                               {row[c.id] ?? ''}
                             </td>
@@ -186,7 +188,7 @@ export function AnnualReport({ activities }: Props) {
                   </tbody>
                 </table>
                 <div className="mt-2 flex flex-wrap gap-x-3 gap-y-1">
-                  {CATEGORIES.map((c) => (
+                  {categories.map((c) => (
                     <span key={c.id} className="flex items-center gap-1 text-xs text-muted-foreground">
                       <span className={`inline-block h-2.5 w-2.5 rounded-full ${c.dot}`} />
                       {c.label}

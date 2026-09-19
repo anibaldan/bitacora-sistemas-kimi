@@ -38,7 +38,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { Activity, CategoryId } from '@/types/activity'
-import { CATEGORIES, categoryMeta } from '@/types/activity'
+import { useCategories } from '@/lib/categories'
 import {
   filtrosVacios,
   formatFechaCorta,
@@ -131,6 +131,7 @@ interface Props {
 }
 
 export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
+  const { categories, categoryMeta } = useCategories()
   const [filtros, setFiltros] = useState<Filtros>(filtrosVacios)
   const [asc, setAsc] = useState(false)
   const [formOpen, setFormOpen] = useState(false)
@@ -271,7 +272,7 @@ export function ActivityList({ activities, onAdd, onUpdate, onRemove }: Props) {
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="todas">Todas las categorías</SelectItem>
-                {CATEGORIES.map((c) => (
+                {categories.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.label}
                   </SelectItem>

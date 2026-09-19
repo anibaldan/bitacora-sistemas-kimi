@@ -12,15 +12,15 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import type { Activity, ActivityDraft, CategoryId } from '@/types/activity'
-import { CATEGORIES, categoryMeta } from '@/types/activity'
+import { useCategories } from '@/lib/categories'
 import { todayISO } from '@/lib/bitacora'
 
-const emptyDraft = (): ActivityDraft => ({
+const emptyDraft = (categoria: string, subtipo: string): ActivityDraft => ({
   fecha: todayISO(),
   horaInicio: '',
   horaFin: '',
-  categoria: 'desarrollo',
-  subtipo: CATEGORIES[0].subtipos[0],
+  categoria,
+  subtipo,
   sistema: '',
   descripcion: '',
   resultado: '',
@@ -55,12 +55,17 @@ interface Props {
 }
 
 export function ActivityForm({ initial, onSubmit, onCancel }: Props) {
-  const [d, setD] = useState<ActivityDraft>(() => (initial ? toDraft(initial) : emptyDraft()))
+  const { categories, categoryMeta } = useCategories()
+  const defaultCategoria = categories[0]?.id ?? 'otro'
+  const defaultSubtipo = categories[0]?.subtipos[0] ?? ''
+  const [d, setD] = useState<ActivityDraft>(() =>
+    initial ? toDraft(initial) : emptyDraft(defaultCategoria, defaultSubtipo),
+  )
   const [prevInitial, setPrevInitial] = useState(initial)
 
   if (prevInitial !== initial) {
     setPrevInitial(initial)
-    setD(initial ? toDraft(initial) : emptyDraft())
+    setD(initial ? toDraft(initial) : emptyDraft(defaultCategoria, defaultSubtipo))
   }
 
   const meta = categoryMeta(d.categoria)
@@ -122,7 +127,7 @@ export function ActivityForm({ initial, onSubmit, onCancel }: Props) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {CATEGORIES.map((c) => (
+              {categories.map((c) => (
                 <SelectItem key={c.id} value={c.id}>
                   {c.label}
                 </SelectItem>

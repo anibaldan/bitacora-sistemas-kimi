@@ -1,10 +1,5 @@
-export type CategoryId =
-  | 'desarrollo'
-  | 'analisis'
-  | 'testing'
-  | 'despliegue'
-  | 'reunion'
-  | 'otro'
+/** Identificador de categoría. Las categorías son definidas por el usuario (ver DEFAULT_CATEGORIES). */
+export type CategoryId = string
 
 export interface Activity {
   id: string
@@ -52,7 +47,7 @@ export interface CategoryMeta {
   subtipos: string[]
 }
 
-export const CATEGORIES: CategoryMeta[] = [
+export const DEFAULT_CATEGORIES: CategoryMeta[] = [
   {
     id: 'desarrollo',
     label: 'Desarrollo de software',
@@ -142,5 +137,13 @@ export const CATEGORIES: CategoryMeta[] = [
   },
 ]
 
-export const categoryMeta = (id: CategoryId): CategoryMeta =>
-  CATEGORIES.find((c) => c.id === id) ?? CATEGORIES[CATEGORIES.length - 1]
+/** Categoría de respaldo para actividades cuyo id de categoría no existe (p. ej. respaldo de otro navegador). */
+export const FALLBACK_CATEGORY: CategoryMeta = {
+  id: 'sin-categoria',
+  label: 'Sin categoría',
+  icon: 'clipboard',
+  badge: 'bg-gray-200 text-gray-700 dark:bg-gray-800 dark:text-gray-300',
+  dot: 'bg-gray-500',
+  bar: 'bg-gray-500',
+  subtipos: [],
+}

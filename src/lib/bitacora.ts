@@ -1,6 +1,4 @@
-import type { Activity, ActivityDraft, CategoryId } from '@/types/activity'
-import { CATEGORIES, categoryMeta } from '@/types/activity'
-
+import type { Activity, ActivityDraft, CategoryId, CategoryMeta } from '@/types/activity'
 /* ---------- Fechas ---------- */
 
 export const MESES = [
@@ -156,9 +154,9 @@ export interface YearStats {
   diasTrabajados: number
 }
 
-export function computeYearStats(acts: Activity[], year: number): YearStats {
+export function computeYearStats(acts: Activity[], year: number, categorias: CategoryMeta[]): YearStats {
   const delAno = acts.filter((a) => yearOf(a) === year)
-  const porCategoria = CATEGORIES.map((c) => {
+  const porCategoria = categorias.map((c) => {
     const count = delAno.filter((a) => a.categoria === c.id).length
     return { id: c.id, label: c.label, count, pct: delAno.length ? Math.round((count / delAno.length) * 100) : 0 }
   })
@@ -228,9 +226,10 @@ export function generarMemoria(stats: YearStats): string {
   for (let m = 0; m < 12; m++) {
     const row = stats.porMes[m]
     if (!row) continue
-    const parts = CATEGORIES.filter((c) => row[c.id]).map(
-      (c) => `${categoryMeta(c.id).label.toLowerCase()}: ${row[c.id]}`
-    )
+    const labelPorId = new Map(stats.porCategoria.map((c) => [c.id, c.label.toLowerCase()]))
+    const parts = Object.entries(row)
+      .filter(([ , v]) => v)
+      .map(([id, v]) => `${labelPorId.get(id) ?? 'otras'}: ${v}`)
     lines.push(`- **${MESES[m]}:** ${parts.join(', ')}`)
   }
   lines.push('')
@@ -266,7 +265,7 @@ export function importJSON(raw: string): ImportResult {
       fecha: a.fecha,
       horaInicio: esValido(a.horaInicio) ? a.horaInicio : undefined,
       horaFin: esValido(a.horaFin) ? a.horaFin : undefined,
-      categoria: CATEGORIES.some((c) => c.id === a.categoria) ? (a.categoria as CategoryId) : 'otro',
+      categoria: texto(a.categoria, 'otro'),
       subtipo: texto(a.subtipo),
       sistema: texto(a.sistema),
       descripcion: a.descripcion,
