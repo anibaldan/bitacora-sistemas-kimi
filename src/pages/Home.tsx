@@ -26,6 +26,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { useActivities } from '@/hooks/useActivities'
+import { CategoriesProvider } from '@/lib/categories'
 import {
   exportJSON,
   fromDraft,
@@ -165,6 +166,7 @@ export default function Home() {
       )}
 
       <main className="mx-auto max-w-6xl px-4 py-6">
+        <CategoriesProvider activities={api.activities}>
         {vista === 'registros' && (
           <ActivityList
             activities={api.activities}
@@ -175,6 +177,7 @@ export default function Home() {
         )}
         {vista === 'memoria' && <AnnualReport activities={api.activities} />}
         {vista === 'comparar' && <CompareView activities={api.activities} />}
+        </CategoriesProvider>
       </main>
 
       <AlertDialog open={!!confirmImport} onOpenChange={(o) => !o && setConfirmImport(null)}>
