@@ -63,7 +63,9 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null)
 
   const handleExport = () => {
-    const blob = new Blob([exportJSON(api.activities)], { type: 'application/json' })
+    const catsRaw = localStorage.getItem('bitacora-sistemas.categorias.v1')
+    const cats = catsRaw ? JSON.parse(catsRaw) : []
+    const blob = new Blob([exportJSON(api.activities, cats)], { type: 'application/json' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
@@ -199,13 +201,17 @@ export default function Home() {
               onClick={() => {
                 if (!confirmImport) return
                 try {
-                  const { actividades, descartados } = importJSON(confirmImport)
+                  const { actividades, categorias, descartados } = importJSON(confirmImport)
                   api.replaceAll(actividades)
+                  if (categorias) {
+                    localStorage.setItem('bitacora-sistemas.categorias.v1', JSON.stringify(categorias))
+                  }
                   toast.success(
                     descartados > 0
                       ? `Se importaron ${actividades.length} registros (${descartados} descartados)`
                       : `Se importaron ${actividades.length} registros`
                   )
+                  setTimeout(() => window.location.reload(), 500)
                 } catch {
                   toast.error('No se pudo importar el archivo')
                 }

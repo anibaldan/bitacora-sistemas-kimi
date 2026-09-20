@@ -238,18 +238,22 @@ export function generarMemoria(stats: YearStats): string {
 
 /* ---------- Exportación / importación ---------- */
 
-export function exportJSON(acts: Activity[]): string {
-  return JSON.stringify({ app: 'bitacora-sistemas', version: 1, actividades: acts }, null, 2)
+export function exportJSON(acts: Activity[], cats: CategoryMeta[] = []): string {
+  return JSON.stringify({ app: 'bitacora-sistemas', version: 2, actividades: acts, categorias: cats }, null, 2)
 }
 
 export interface ImportResult {
   actividades: Activity[]
+  categorias: CategoryMeta[] | null
   descartados: number
 }
 
 export function importJSON(raw: string): ImportResult {
   const data = JSON.parse(raw)
   const arr = Array.isArray(data) ? data : data.actividades
+  const cats = (!Array.isArray(data) && Array.isArray(data.categorias))
+    ? (data.categorias as CategoryMeta[])
+    : null
   if (!Array.isArray(arr)) throw new Error('Formato inválido')
   const actividades: Activity[] = []
   let descartados = 0
@@ -284,5 +288,5 @@ export function importJSON(raw: string): ImportResult {
       updatedAt: typeof a.updatedAt === 'number' ? a.updatedAt : Date.now(),
     })
   }
-  return { actividades, descartados }
+  return { actividades, categorias: cats, descartados }
 }
